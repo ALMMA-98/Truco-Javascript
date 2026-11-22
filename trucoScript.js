@@ -1,3 +1,59 @@
+
+    // --- EFEITOS SONOROS (WEB AUDIO API) ---
+let audioCtx = null;
+
+function tocarSom(tipo) {
+  try {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContextClass();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    const agora = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (tipo === 'carta') {
+      // Toque curto e seco ao jogar carta
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(240, agora);
+      osc.frequency.exponentialRampToValueAtTime(110, agora + 0.08);
+      gain.gain.setValueAtTime(0.12, agora);
+      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.08);
+      osc.start(agora);
+      osc.stop(agora + 0.09);
+    } else if (tipo === 'truco') {
+      // Alerta mais marcante para pedido de Truco
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(330, agora);
+      osc.frequency.setValueAtTime(440, agora + 0.09);
+      gain.gain.setValueAtTime(0.11, agora);
+      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.22);
+      osc.start(agora);
+      osc.stop(agora + 0.23);
+    } else if (tipo === 'vitoria') {
+      // Acorde curto ascendente para vitória na mão/rodada
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, agora);
+      osc.frequency.setValueAtTime(554.37, agora + 0.1);
+      osc.frequency.setValueAtTime(659.25, agora + 0.2);
+      gain.gain.setValueAtTime(0.12, agora);
+      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.35);
+      osc.start(agora);
+      osc.stop(agora + 0.36);
+    }
+  } catch (e) {
+    // Ignora caso o navegador bloqueie áudio antes de interação
+  }
+}
+    
+    
     const NAIPES_SIMBOLOS = {
       ouro: '♦',
       espadas: '♠',
@@ -345,14 +401,16 @@
       }
 
       const carta = state.jogadores[0].cartas.splice(cardIndex, 1)[0];
-      state.cartasMesa.push({ jogadorId: 0, carta });
+      state.cartasMesa.push({ jogadorId: 0, carta })
+      tocarSom('carta');
       log(`Você jogou ${carta.valor} (${NAIPES_SIMBOLOS[carta.naipe]})`);
       renderizarTudo(true);
       proximoTurno();
     }
 
     function jogarCartaIA(jogador) {
-      jogador.cartas.sort((a, b) => a.forca - b.forca);
+      jogador.cartas.sort((a, b) => a.forca - b.forca)
+      tocarSom('carta');
       let idxEscolha = 0;
 
       if (state.cartasMesa.length > 0) {
@@ -374,68 +432,77 @@
 
     // --- FINALIZAÇÃO DA RODADA E DA MÃO ---
     function finalizarRodada() {
-      let maiorForca = -1;
-      let vencedores = [];
+  let maiorForca = -1;
+  let vencedores = [];
 
-      state.cartasMesa.forEach(item => {
-        if (item.carta.forca > maiorForca) {
-          maiorForca = item.carta.forca;
-          vencedores = [item.jogadorId];
-        } else if (item.carta.forca === maiorForca) {
-          vencedores.push(item.jogadorId);
-        }
-      });
-
-      let resultadoDupla = null;
-      let mensagemRodada = '';
-
-      if (vencedores.length === 1) {
-        const vId = vencedores[0];
-        resultadoDupla = state.jogadores[vId].dupla;
-        mensagemRodada = `Rodada da Dupla ${resultadoDupla} (${state.jogadores[vId].nome})`;
-      } else {
-        const duplasEmpatadas = new Set(vencedores.map(id => state.jogadores[id].dupla));
-        if (duplasEmpatadas.size === 1) {
-          resultadoDupla = Array.from(duplasEmpatadas)[0];
-          mensagemRodada = `Rodada da Dupla ${resultadoDupla}`;
-        } else {
-          resultadoDupla = 'EMPATE';
-          mensagemRodada = 'Rodada Empatada (Cangou!)';
-        }
-      }
-
-      log(mensagemRodada);
-      exibirBannerRodada(mensagemRodada);
-
-      state.historicoRodadas.push(resultadoDupla);
-      state.rodadaAtual++;
-      atualizarTrackerRodadas();
-
-      // Animação das cartas saindo da mesa após exibir quem venceu a rodada
-      setTimeout(() => {
-        state.saindoCartas = true;
-        renderizarMesa(false);
-
-        setTimeout(() => {
-          esconderBannerRodada();
-          state.cartasMesa = [];
-          state.saindoCartas = false;
-          renderizarMesa(false);
-
-          const vencedorMao = verificarVencedorMao();
-          if (vencedorMao) {
-            atribuirPontos(vencedorMao);
-          } else {
-            if (resultadoDupla !== 'EMPATE') {
-              state.turnoAtual = vencedores[0];
-            }
-            state.bloqueadoAcao = false;
-            atualizarTurnoUI();
-            processarTurno();
-          }
-        }, 620);
-      }, 1350);
+  state.cartasMesa.forEach(item => {
+    if (item.carta.forca > maiorForca) {
+      maiorForca = item.carta.forca;
+      vencedores = [item.jogadorId];
+    } else if (item.carta.forca === maiorForca) {
+      vencedores.push(item.jogadorId);
     }
+  });
+
+  // Destaca visualmente a(s) carta(s) de maior força na mesa
+  const wrappers = document.querySelectorAll('#played-cards-area .played-card-wrapper');
+  state.cartasMesa.forEach((item, idx) => {
+    if (vencedores.includes(item.jogadorId) && wrappers[idx]) {
+      const cardEl = wrappers[idx].querySelector('.card');
+      if (cardEl) cardEl.classList.add('round-winner');
+    }
+  });
+
+  let resultadoDupla = null;
+  let mensagemRodada = '';
+
+  if (vencedores.length === 1) {
+    const vId = vencedores[0];
+    resultadoDupla = state.jogadores[vId].dupla;
+    mensagemRodada = `Rodada da Dupla ${resultadoDupla} (${state.jogadores[vId].nome})`;
+  } else {
+    const duplasEmpatadas = new Set(vencedores.map(id => state.jogadores[id].dupla));
+    if (duplasEmpatadas.size === 1) {
+      resultadoDupla = Array.from(duplasEmpatadas)[0];
+      mensagemRodada = `Rodada da Dupla ${resultadoDupla}`;
+    } else {
+      resultadoDupla = 'EMPATE';
+      mensagemRodada = 'Rodada Empatada (Cangou!)';
+    }
+  }
+
+  log(mensagemRodada);
+  exibirBannerRodada(mensagemRodada);
+
+  state.historicoRodadas.push(resultadoDupla);
+  state.rodadaAtual++;
+  atualizarTrackerRodadas();
+
+  // Animação das cartas saindo da mesa após exibir quem venceu a rodada
+  setTimeout(() => {
+    state.saindoCartas = true;
+    renderizarMesa(false);
+
+    setTimeout(() => {
+      esconderBannerRodada();
+      state.cartasMesa = [];
+      state.saindoCartas = false;
+      renderizarMesa(false);
+
+      const vencedorMao = verificarVencedorMao();
+      if (vencedorMao) {
+        atribuirPontos(vencedorMao);
+      } else {
+        if (resultadoDupla !== 'EMPATE') {
+          state.turnoAtual = vencedores[0];
+        }
+        state.bloqueadoAcao = false;
+        atualizarTurnoUI();
+        processarTurno();
+      }
+    }, 620);
+  }, 1350);
+}
 
     function verificarVencedorMao() {
       const h = state.historicoRodadas;
@@ -460,6 +527,7 @@
 
     function atribuirPontos(dupla) {
       if (dupla === 'A' || dupla === 'B') {
+        tocarSom('vitoria')
         state.placar[dupla] += state.valorMao;
         const nomeDupla = dupla === 'A' ? 'DUPLA A (VOCÊ E PARCEIRO)' : 'DUPLA B (RIVAIS)';
         log(`Vitória na mão: ${nomeDupla} (+${state.valorMao} tento(s))`);
@@ -507,7 +575,8 @@
       state.trucoPendente = true;
 
       log(`Você pediu ${grito} (${proximoValor} tentos)`);
-      dispararAnimacaoTruco(grito);
+      dispararAnimacaoTruco(grito)
+      tocarSom('truco');
       atualizarTurnoUI();
 
       setTimeout(() => decidirRespostaTrucoIA(), 1100);
@@ -535,7 +604,8 @@
         state.trucoPendente = true;
 
         log(`${jogador.nome} (Dupla B) pediu ${grito} (${proximoValor} tentos)`);
-        dispararAnimacaoTruco(grito);
+        dispararAnimacaoTruco(grito)
+        tocarSom('truco');
         exibirModalTrucoHumano(proximoValor, grito);
       } else {
         jogarCartaIA(jogador);
@@ -624,7 +694,8 @@
       const proximoValor = ESCALA_APOSTAS[state.indiceAposta + 1];
       const grito = ROTULOS_APOSTAS[proximoValor] || 'AUMENTO!';
       log(`Você pediu ${grito} (${proximoValor} tentos)`);
-      dispararAnimacaoTruco(grito);
+      dispararAnimacaoTruco(grito)
+      tocarSom('truco');
 
       setTimeout(() => decidirRespostaTrucoIA(), 1100);
     }
@@ -646,56 +717,4 @@
       logEl.appendChild(item);
       logEl.scrollTop = logEl.scrollHeight;
     }
-    // --- EFEITOS SONOROS (WEB AUDIO API) ---
-let audioCtx = null;
 
-function tocarSom(tipo) {
-  try {
-    if (!audioCtx) {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new AudioContextClass();
-    }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-
-    const agora = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    if (tipo === 'carta') {
-      // Toque curto e seco ao jogar carta
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(240, agora);
-      osc.frequency.exponentialRampToValueAtTime(110, agora + 0.08);
-      gain.gain.setValueAtTime(0.12, agora);
-      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.08);
-      osc.start(agora);
-      osc.stop(agora + 0.09);
-    } else if (tipo === 'truco') {
-      // Alerta mais marcante para pedido de Truco
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(330, agora);
-      osc.frequency.setValueAtTime(440, agora + 0.09);
-      gain.gain.setValueAtTime(0.11, agora);
-      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.22);
-      osc.start(agora);
-      osc.stop(agora + 0.23);
-    } else if (tipo === 'vitoria') {
-      // Acorde curto ascendente para vitória na mão/rodada
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, agora);
-      osc.frequency.setValueAtTime(554.37, agora + 0.1);
-      osc.frequency.setValueAtTime(659.25, agora + 0.2);
-      gain.gain.setValueAtTime(0.12, agora);
-      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.35);
-      osc.start(agora);
-      osc.stop(agora + 0.36);
-    }
-  } catch (e) {
-    // Ignora caso o navegador bloqueie áudio antes de interação
-  }
-}
