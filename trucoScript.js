@@ -118,6 +118,7 @@ function tocarSom(tipo) {
       indiceAposta: 0,
       duplaPediuUltimoAumento: null,
       primeiroJogadorMao: 0,
+      primeiroJogadorRodada: 0,
       turnoAtual: 0,
       rodadaAtual: 0,
       historicoRodadas: [],
@@ -132,7 +133,8 @@ function tocarSom(tipo) {
       bloqueadoAcao: false,
       saindoCartas: false,
       primeiraJogadaFeita: false,
-      tutorialAtivo: true
+      tutorialAtivo: true,
+      
     };
 
     // --- UI: REGRAS, PAINEL DE ORDEM E TUTORIAL ---
@@ -247,6 +249,7 @@ function tocarSom(tipo) {
       });
 
       state.turnoAtual = state.primeiroJogadorMao;
+      state.primeiroJogadorRodada = state.primeiroJogadorMao;
       renderizarTudo(true);
       atualizarTurnoUI();
       atualizarTutorialUI();
@@ -507,8 +510,12 @@ function tocarSom(tipo) {
         atribuirPontos(vencedorMao);
       } else {
         if (resultadoDupla !== 'EMPATE') {
-          state.turnoAtual = vencedores[0];
-        }
+  state.primeiroJogadorRodada = vencedores[0];
+  state.turnoAtual = vencedores[0];
+} else {
+  // Em caso de empate, quem abriu a rodada empatada joga primeiro novamente
+  state.turnoAtual = state.primeiroJogadorRodada;
+}
         state.bloqueadoAcao = false;
         atualizarTurnoUI();
         processarTurno();
@@ -524,19 +531,24 @@ function tocarSom(tipo) {
 
       if (vitoriasA >= 2) return 'A';
       if (vitoriasB >= 2) return 'B';
-
-      if (h.length >= 2) {
-        if (h[0] === 'EMPATE' && h[1] !== 'EMPATE') return h[1];
-        if (h[1] === 'EMPATE' && h[0] !== 'EMPATE') return h[0];
-        if (h[2] && h[2] === 'EMPATE' && h[0] !== 'EMPATE') return h[0];
+      if (h[0] === 'EMPATE'){
+        const primeiraAposEmpate = h.slice(1).find(r => r=== 'A' || r === 'B');
+        if (primeiraAposEmpate) return primeiraAposEmpate;
+        if (h.length === 3) return 'NENHUM';
+        return null;
       }
 
-      if (h.length === 3 && h.every(r => r === 'EMPATE')) {
-        return 'NENHUM';
-      }
+if (h.length >= 2 && h[1] === 'EMPATE' && (h[0] === 'A' || h[0] === 'B')) {
+    return h[0];
+  }
+  if (h.length === 3 && h[2] === 'EMPATE' && (h[0] === 'A' || h[0] === 'B')) {
+    return h[0];
+  }
 
-      return null;
-    }
+  if (h.length === 3) return 'NENHUM';
+
+  return null;
+}
 
     function atribuirPontos(dupla) {
       if (dupla === 'A' || dupla === 'B') {
