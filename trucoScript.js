@@ -175,6 +175,19 @@ function tocarSom(tipo) {
         el.style.display = 'none';
       }, 1360);
     }
+    function dispararAnimacaoRespostaTruco(texto, tipo) {
+  const el = document.getElementById('truco-response-callout');
+  el.innerText = texto;
+  el.className = tipo; // 'accepted' ou 'fled'
+  el.style.display = 'block';
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = 'responsePop 1.4s ease forwards';
+
+  setTimeout(() => {
+    el.style.display = 'none';
+  }, 1420);
+}
 
     function exibirBannerRodada(texto) {
       const banner = document.getElementById('round-winner-banner');
@@ -627,6 +640,7 @@ function tocarSom(tipo) {
       const chanceAceitar = melhorForcaRivais > (35 + pesoAposta) || Math.random() < (0.28 - state.indiceAposta * 0.05);
 
       if (chanceAceitar) {
+        dispararAnimacaoRespostaTruco(`DUPLA B ACEITOU! (${state.valorMao})`, 'accepted');
         state.indiceAposta++;
         state.valorMao = ESCALA_APOSTAS[state.indiceAposta];
         state.trucoPendente = false;
@@ -639,6 +653,7 @@ function tocarSom(tipo) {
           setTimeout(() => jogarCartaIA(state.jogadores[state.turnoAtual]), 700);
         }
       } else {
+        dispararAnimacaoRespostaTruco('DUPLA B FUGIU!', 'fled');
         log(`Dupla B FUGIU! Dupla A ganha ${state.valorMao} tento(s).`);
         state.trucoPendente = false;
         atribuirPontos('A');
@@ -674,11 +689,13 @@ function tocarSom(tipo) {
         state.trucoPendente = false;
         state.bloqueadoAcao = false;
         log(`Você ACEITOU! Mão valendo ${state.valorMao} tento(s).`);
+        dispararAnimacaoRespostaTruco(`VOCÊ ACEITOU! (${state.valorMao})`, 'accepted');
         atualizarUIValores();
         atualizarTurnoUI();
         processarTurno();
       } else {
         log(`Você FUGIU! Dupla B ganha ${state.valorMao} tento(s).`);
+        dispararAnimacaoRespostaTruco('VOCÊ FUGIU!', 'fled');
         state.trucoPendente = false;
         atribuirPontos('B');
       }
