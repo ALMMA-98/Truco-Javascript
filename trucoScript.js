@@ -646,3 +646,56 @@
       logEl.appendChild(item);
       logEl.scrollTop = logEl.scrollHeight;
     }
+    // --- EFEITOS SONOROS (WEB AUDIO API) ---
+let audioCtx = null;
+
+function tocarSom(tipo) {
+  try {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContextClass();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    const agora = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (tipo === 'carta') {
+      // Toque curto e seco ao jogar carta
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(240, agora);
+      osc.frequency.exponentialRampToValueAtTime(110, agora + 0.08);
+      gain.gain.setValueAtTime(0.12, agora);
+      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.08);
+      osc.start(agora);
+      osc.stop(agora + 0.09);
+    } else if (tipo === 'truco') {
+      // Alerta mais marcante para pedido de Truco
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(330, agora);
+      osc.frequency.setValueAtTime(440, agora + 0.09);
+      gain.gain.setValueAtTime(0.11, agora);
+      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.22);
+      osc.start(agora);
+      osc.stop(agora + 0.23);
+    } else if (tipo === 'vitoria') {
+      // Acorde curto ascendente para vitória na mão/rodada
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, agora);
+      osc.frequency.setValueAtTime(554.37, agora + 0.1);
+      osc.frequency.setValueAtTime(659.25, agora + 0.2);
+      gain.gain.setValueAtTime(0.12, agora);
+      gain.gain.exponentialRampToValueAtTime(0.001, agora + 0.35);
+      osc.start(agora);
+      osc.stop(agora + 0.36);
+    }
+  } catch (e) {
+    // Ignora caso o navegador bloqueie áudio antes de interação
+  }
+}
