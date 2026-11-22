@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo de Truco - Edição Completa</title>
+<link rel="stylesheet" href="trucoStyle.css">
+</head>
+<body>
+
+  <!-- TELA INICIAL -->
+  <div id="start-screen">
+    <h1 id="start-title">TRUCO</h1>
+    <p style="color: #ddd; max-width: 440px; text-align: center; font-size: 0.98rem; line-height: 1.45;">
+      2 Duplas • 3 cartas por jogador • Até 24 tentos.<br>
+      Baralho sem 4, 5, 6 e 7 comuns, com hierarquia especial de manilhas até o Zap (4 de Paus).
+    </p>
+    <button class="btn-main" id="btn-iniciar" onclick="iniciarJogoGlobal()">INICIAR JOGO</button>
+  </div>
+
+  <!-- ANIMAÇÃO DE TRUCO! -->
+  <div id="truco-callout">TRUCO!</div>
+
+  <!-- INDICADOR ANIMADO DE QUEM GANHOU AS 3 RODADAS / A MÃO -->
+  <div id="hand-winner-banner"></div>
+
+  <!-- MODAL DE PEDIDO DE TRUCO -->
+  <div id="truco-modal" class="modal-backdrop">
+    <div class="modal-box" style="text-align: center;">
+      <h2 id="truco-modal-title">ADVERSÁRIOS PEDIRAM TRUCO!</h2>
+      <p id="truco-modal-desc">Escolha como sua dupla deseja responder:</p>
+      <div class="modal-buttons" style="justify-content: center;">
+        <button class="btn-action btn-aceitar" onclick="responderTruco(true)">ACEITAR</button>
+        <button class="btn-action btn-correr" onclick="responderTruco(false)">FUGIR</button>
+        <button class="btn-action btn-truco" id="btn-aumentar-aposta" onclick="aumentarAposta()">AUMENTAR MAIS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE REGRAS E INSTRUÇÕES ('?') -->
+  <div id="help-modal" class="modal-backdrop" onclick="fecharModalRegras(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <h2>Regras e Instruções do Truco</h2>
+      <ul>
+        <li><strong>Duplas e Pontos:</strong> 4 jogadores em 2 duplas (Você + Bot 2 formam a <strong>Dupla A</strong> contra Bot 1 + Bot 3 da <strong>Dupla B</strong>). Vence quem alcançar <strong>24 tentos</strong>.</li>
+        <li><strong>Rodadas e Mão:</strong> Cada jogador recebe 3 cartas. Ganha a mão quem vencer <strong>2 rodadas</strong>.</li>
+        <li><strong>Empate (Cangar):</strong> Se empatar na 1ª rodada, quem vencer a 2ª leva a mão. Se empatar na 2ª ou 3ª rodada, leva quem venceu a 1ª rodada.</li>
+        <li><strong>Apostas:</strong> A mão começa valendo 1 tento e pode subir para <strong>3 (Truco)</strong>, <strong>6</strong>, <strong>9</strong> e <strong>12</strong>. Fugir entrega os tentos anteriores ao desafiante.</li>
+        <li><strong>Turno do Truco:</strong> Você pode pedir aumento na sua vez; os adversários só pedem aumento na vez deles, antes de jogar a carta.</li>
+      </ul>
+      <div class="modal-buttons">
+        <button class="btn-action btn-aceitar" onclick="toggleModalRegras(false)">Entendi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CABEÇALHO -->
+  <header>
+    <div class="score-board">
+      <div class="score-team team-active" id="team-card-a">Dupla A (Você): <span id="score-a">0</span></div>
+      <div class="score-team" id="team-card-b">Dupla B (Rivais): <span id="score-b">0</span></div>
+      <div id="dupla-turn-badge">VEZ DA DUPLA A</div>
+    </div>
+
+    <div class="header-right">
+      <div class="round-info">Valor Mão: <span id="valor-mao">1</span> tento(s)</div>
+      <button id="btn-help" title="Regras e Instruções" onclick="toggleModalRegras(true)">?</button>
+    </div>
+  </header>
+
+  <!-- ABA RETRÁTIL DE ORDEM DAS CARTAS -->
+  <aside id="power-drawer">
+    <button id="btn-toggle-power" onclick="togglePainelOrdem()">ORDEM DAS CARTAS</button>
+    <div id="power-panel">
+      <h3>Maior para o Menor Poder</h3>
+      <ul class="power-list">
+        <li class="top-card"><span>1. Zap (4 de Paus)</span><span>MÁX</span></li>
+        <li class="top-card"><span>2. 7 de Copas</span><span>#2</span></li>
+        <li class="top-card"><span>3. Espadilha (Ás Espadas)</span><span>#3</span></li>
+        <li class="top-card"><span>4. 7 de Ouro</span><span>#4</span></li>
+        <li class="top-card"><span>5. Joker (Coringa)</span><span>#5</span></li>
+        <li><span>6. Três (3 - todos os naipes)</span><span>#6</span></li>
+        <li><span>7. Dois (2 - todos os naipes)</span><span>#7</span></li>
+        <li><span>8. Ás (♦, ♥, ♣)</span><span>#8</span></li>
+        <li><span>9. Rei (K)</span><span>#9</span></li>
+        <li><span>10. Valete (J)</span><span>#10</span></li>
+        <li><span>11. Dama (Q)</span><span>MENOR</span></li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- MESA PRINCIPAL -->
+  <main id="mesa">
+    <div class="player-slot norte">
+      <div class="player-label" id="label-2">Bot 2 (Dupla A)</div>
+      <div class="mao-cartas" id="hand-2"></div>
+    </div>
+
+    <div class="player-slot oeste">
+      <div class="player-label" id="label-1">Bot 1 (Dupla B)</div>
+      <div class="mao-cartas" id="hand-1"></div>
+    </div>
+
+    <div class="player-slot leste">
+      <div class="player-label" id="label-3">Bot 3 (Dupla B)</div>
+      <div class="mao-cartas" id="hand-3"></div>
+    </div>
+
+    <div id="centro-mesa">
+      <div id="round-tracker" style="display: flex; flex-direction: column; align-items: center;">
+        <span style="font-size: 0.72rem; color: #bbb; letter-spacing: 1px;">PLACAR DAS RODADAS</span>
+        <div class="round-history" id="round-dots">
+          <div class="round-dot"></div>
+          <div class="round-dot"></div>
+          <div class="round-dot"></div>
+        </div>
+      </div>
+
+      <div id="played-cards-area"></div>
+
+      <div id="round-winner-banner"></div>
+    </div>
+
+    <div class="player-slot sul">
+      <div class="mao-cartas" id="hand-0"></div>
+      <div class="player-label" id="label-0">Você (Dupla A)</div>
+    </div>
+  </main>
+
+  <!-- CAIXA DE REGISTRO -->
+  <div id="game-log" aria-label="Histórico de ações"></div>
+
+  <!-- TUTORIAL APENAS NA PRIMEIRA JOGADA -->
+  <div id="tutorial-box">
+    <h4>Dica da Primeira Jogada</h4>
+    <p id="tutorial-text">
+      Clique em uma das suas cartas destacadas para jogar na rodada ou use <strong>PEDIR TRUCO</strong> na sua vez para aumentar o valor da mão.
+    </p>
+    <button id="btn-skip-tutorial" onclick="pularTutorial()">Pular tutorial</button>
+  </div>
+
+  <!-- RODAPÉ DE CONTROLES -->
+  <footer id="controles">
+    <button class="btn-action btn-truco" id="btn-pedir-truco" onclick="solicitarTruco()" disabled>PEDIR TRUCO (3)</button>
+  </footer>
+
+  <script src="trucoScript.js"> </script>
+</body>
+</html>
